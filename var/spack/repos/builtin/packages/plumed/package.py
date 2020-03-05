@@ -5,6 +5,7 @@
 
 import collections
 import os.path
+from spack.version import Version
 
 
 class Plumed(AutotoolsPackage):
@@ -32,6 +33,7 @@ class Plumed(AutotoolsPackage):
     version('2.5.0', sha256='53e08187ec9f8af2326fa84407e34644a7c51d2af93034309fb70675eee5e4f7')
     version('2.4.6', sha256='c22ad19f5cd36ce9fe4ba0b53158fc2a3d985c48fc04606e3f3b3e835b994cb3')
     version('2.4.4', sha256='1e5c24109314481fad404da97d61c7339b219e27e120c9c80bacc79c9f6a51a8')
+    version('2.4.3', sha256='7d1e37578dfb2ae97f0bd0b55b67405b01b931073426a59eecbb0cfe9dfc7ff7')
     version('2.4.2', sha256='528ce57f1f5330480bcd403140166a4580efd2acaea39c85dfeca5e2cd649321')
     version('2.4.1', sha256='f00410ebdd739c2ddf55fcd714ff4bd88a1029e02d2fc9cea0b5fca34e0fc4eb')
     version('2.3.5', sha256='a6a66ca4582c1aecc6138c96be015e13cd06a718e8446b2f13e610fe34602e4f')
@@ -92,17 +94,30 @@ class Plumed(AutotoolsPackage):
         out = plumed_patch('-q', '-l', output=str)
         available = out.split(':')[-1].split()
 
-        # Check that `other` is among the patchable applications
-        if get_md(other) not in available:
-            msg = '{0.name}@{0.version} is not among the MD engine'
-            msg += ' that can be patched by {1.name}@{1.version}.\n'
-            msg += 'Supported engines are:\n'
-            for x in available:
-                msg += x + '\n'
-            raise RuntimeError(msg.format(other, self.spec))
+        if '+plumed_lax' in other.spec:
+            # the MD code specifies lax patching, i.e. ignoring the last
+            # component of the version string.
+            majorversion = other.version.up_to(-1)
+            allowed = [engine for engine in available
+                       if engine.startswith(other.name)  # this engine
+                       and Version(engine.split('-', 1)[1]).up_to(-1) ==
+                       majorversion]  # major version matches
+            # find the highest minor version
+            target = sorted(
+                allowed,
+                key=lambda engine: Version(engine.split('-', 1)[1]))[-1]
+        else:
+            # Check that `other` is among the patchable applications
+            if get_md(other) not in available:
+                msg = '{0.name}@{0.version} is not among the MD engine'
+                msg += ' that can be patched by {1.name}@{1.version}.\n'
+                msg += 'Supported engines are:\n'
+                for x in available:
+                    msg += x + '\n'
+                raise RuntimeError(msg.format(other, self.spec))
 
-        # Call plumed-patch to patch executables
-        target = format_strings[other.name].format(other)
+            # Call plumed-patch to patch executables
+            target = format_strings[other.name].format(other)
         plumed_patch('-p', '-e', target)
 
     def setup_dependent_package(self, module, dependent_spec):

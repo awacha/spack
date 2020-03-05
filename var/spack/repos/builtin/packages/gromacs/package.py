@@ -56,6 +56,8 @@ class Gromacs(CMakePackage):
         'double', default=False,
         description='Produces a double precision version of the executables')
     variant('plumed', default=False, description='Enable PLUMED support')
+    # the next variant, when set, is handled by the plumed package
+    variant('plumed_lax', default=False, description='More relaxed MD engine version matching when patching with PLUMED')
     variant('cuda', default=False, description='Enable CUDA support')
     variant('build_type', default='RelWithDebInfo',
             description='The build type to build',
